@@ -102,7 +102,7 @@ training            8 seconds ago       0 B
 We have our training data repository, but we haven't put our training data set into this repository yet.  You can get the training data set that we will be using via:
 
 ```
-$ wget https://s3-us-west-2.amazonaws.com/wokshop-example-data/labeledTrainData.tsv
+$ wget https://s3.amazonaws.com/neon-workshop-data/labeledTrainData.tsv
 ```
 
 This `labeledTrainData.tsv` file include 750 labeled movie reviews sampled from a larger IMDB data set.  Here we are using a sample for illustrative purposes (so our examples run a little faster in the workshop), but the entire data set can be obtained [here](http://ai.stanford.edu/~amaas/data/sentiment/).
