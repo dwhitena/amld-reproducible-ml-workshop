@@ -7,7 +7,7 @@ This repo includes all of the materials that you will need for the "Machine Lear
 ## Agenda
 
 1. Introduction
-1. Reproducibility challenges
+1. [Reproducibility challenges](reproducibility_challenges)
 2. [Predictable application behavior with Docker](docker)
 3. [Fully reproducible orchestration of ML workflows](full_ml_workflows)
 
