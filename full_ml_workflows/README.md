@@ -1,8 +1,8 @@
-# Workshop - Scalable, distributed deep learning with Python and Pachyderm
+# Fully reproducible orchestration of ML workflows - Nervana Neon Example
 
 ![alt tag](pipeline.jpg)
 
-This workshop focuses on building a production scale machine learning pipeline with [Pachyderm](http://pachyderm.io/) that integrates [Nervana Neon](https://github.com/NervanaSystems/neon) training and inference.  In particular, this pipeline trains and utilizes a model that predicts the sentiment of movie reviews, based on data from IMDB.
+This portion of the workshop focuses on building a reproducible, production scale machine learning pipeline with [Nervana Neon](https://github.com/NervanaSystems/neon), [Docker](https://www.docker.com/), [Kubernetes](https://kubernetes.io/), and [Pachyderm](http://pachyderm.io/).  In particular, this pipeline trains and utilizes a model that predicts the sentiment of movie reviews, based on data from IMDB.
 
 The below documentation walks you through the deployment of the pipelines and emphasizes a few key features related to reproducibility, pipeline triggering, and provenance:
 
@@ -24,12 +24,6 @@ Bonus:
 13. [Examine pipeline provenance](README.md#13-examine-pipeline-provenance)
 
 Finally, we provide some [Resources](README.md#resources) for you for further exploration.
-
-## Prerequisites
-
-- Ability to `ssh` into a remote machine.
-- An IP for a remote machine (this should have been given to you at the beginning of the workshop).
-- Access to this repository on GitHub (we will clone it later on the remote machine). 
 
 ## 1. Prepare a Python script and Docker image for model training
 
@@ -75,8 +69,8 @@ You will be asked for a password, which you should also be given during the work
 ```
 $ pachctl version
 COMPONENT           VERSION             
-pachctl             1.4.7-RC1           
-pachd               1.4.7-RC1
+pachctl             1.6.6           
+pachd               1.6.6
 ```
 
 ## 4. Create the input data repositories 
