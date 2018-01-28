@@ -73,6 +73,12 @@ pachctl             1.6.6
 pachd               1.6.6
 ```
 
+We will be working from the `full_ml_workflows` directory, so you can go ahead and navigate there:
+
+```
+$ cd ~/amld-reproducible-ml-workshop/full_ml_workflows/
+```
+
 ## 4. Create the input data repositories 
 
 On the Pachyderm cluster running in your remote machine, we will need to create the two input data repositories (for our training data and input movie reviews).  To do this run:
@@ -127,12 +133,12 @@ Next, we can create the `model` pipeline stage to process the data in the traini
 $ pachctl create-pipeline -f train.json
 ```
 
-Immediately you will notice that Pachyderm has kicked off a job to perform the model training:
+Once the pipeline worker spins up, you will notice that Pachyderm has automatically kicked off a job to perform the model training:
 
 ```
 $ pachctl list-job
-ID                                   OUTPUT COMMIT STARTED       DURATION RESTART PROGRESS STATE            
-82682496-5b41-45a0-96f7-175812274dd8 model/-       2 seconds ago -        0       0 / 1    running
+ID                                   OUTPUT COMMIT STARTED        DURATION RESTART PROGRESS  DL UL STATE
+df48056d-bbc2-4fc4-995e-3fae9dc1a659 model/-       11 seconds ago -        0       0 + 0 / 1 0B 0B running
 ```
 
 This job should run for about 3-8 minutes.  In the mean time, we will address any questions that might have come up, help any users with issues they are experiences, and talk a bit more about ML workflows in Pachyderm.
@@ -141,8 +147,8 @@ After your model has successfully been trained, you should see:
 
 ```
 $ pachctl list-job
-ID                                   OUTPUT COMMIT                          STARTED        DURATION  RESTART PROGRESS STATE            
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1 11 minutes ago 3 minutes 0       1 / 1    success
+ID                                   OUTPUT COMMIT                          STARTED        DURATION   RESTART PROGRESS  DL       UL       STATE
+df48056d-bbc2-4fc4-995e-3fae9dc1a659 model/7d5eae8ba55c4f04b5a97e117eb93310 25 seconds ago 14 seconds 0       1 + 0 / 1 977.6KiB 20.93MiB success
 $ pachctl list-repo
 NAME                CREATED             SIZE                
 reviews             21 minutes ago      0 B            
@@ -161,6 +167,7 @@ Great! We now have a trained model that will infer the sentiment of movie review
 ```
 $ cd test
 $ pachctl put-file reviews master -c -r -f .
+$ cd ..
 ```
 
 You should then see:
@@ -184,13 +191,13 @@ This will immediately kick off an inference job, because we have committed unpro
 
 ```
 $ pachctl list-job
-ID                                   OUTPUT COMMIT                          STARTED           DURATION  RESTART PROGRESS STATE            
-40440de9-542f-4f32-80ce-bc52b5222424 inference/-                            3 seconds ago     -         0       0 / 2    running 
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1 About an hour ago 3 minutes 0       1 / 1    success 
+ID                                   OUTPUT COMMIT                          STARTED                DURATION   RESTART PROGRESS  DL       UL       STATE
+b5e9e4ba-93ef-4cfa-841b-cff3cbf21529 inference/-                            Less than a second ago -          0       0 + 0 / 2 0B       0B       running
+df48056d-bbc2-4fc4-995e-3fae9dc1a659 model/7d5eae8ba55c4f04b5a97e117eb93310 4 minutes ago          14 seconds 0       1 + 0 / 1 977.6KiB 20.93MiB success
 $ pachctl list-job
-ID                                   OUTPUT COMMIT                              STARTED            DURATION   RESTART PROGRESS STATE            
-40440de9-542f-4f32-80ce-bc52b5222424 inference/cd548a0b651b4c188b5c66ab0f12ae96 About a minute ago 12 seconds 0       2 / 2    success 
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1     About an hour ago  3 minutes  0       1 / 1    success 
+ID                                   OUTPUT COMMIT                              STARTED        DURATION   RESTART PROGRESS  DL       UL       STATE
+b5e9e4ba-93ef-4cfa-841b-cff3cbf21529 inference/fe985f6564da4edb9dd04892a911e7af 44 seconds ago 2 seconds  0       2 + 0 / 2 41.85MiB 70B      success
+df48056d-bbc2-4fc4-995e-3fae9dc1a659 model/7d5eae8ba55c4f04b5a97e117eb93310     5 minutes ago  14 seconds 0       1 + 0 / 1 977.6KiB 20.93MiB success
 $ pachctl list-repo
 NAME                CREATED              SIZE                
 inference           About a minute ago   70 B                
@@ -228,7 +235,6 @@ This actually doesn't require any change to our code.  We can simply change our 
 
 ```
   "parallelism_spec": {
-    "strategy": "CONSTANT",
     "constant": "10"
   },
 ```
@@ -238,75 +244,37 @@ Pachyderm will then spin up 10 inference workers, each running our same `auto_in
 ```
 $ vim infer.json 
 $ pachctl update-pipeline -f infer.json 
-$ kubectl get all
-NAME                             READY     STATUS        RESTARTS   AGE
-po/etcd-4197107720-xl44v         1/1       Running       0          2h
-po/pachd-3548222380-6nx8j        1/1       Running       0          2h
-po/pipeline-inference-v1-k5vzq   2/2       Terminating   0          14m
-po/pipeline-inference-v2-0c8g3   0/2       Pending       0          3s
-po/pipeline-inference-v2-1bstd   0/2       Init:0/1      0          3s
-po/pipeline-inference-v2-2jm3f   0/2       Init:0/1      0          3s
-po/pipeline-inference-v2-30mc3   0/2       Pending       0          3s
-po/pipeline-inference-v2-8sxnr   0/2       Init:0/1      0          3s
-po/pipeline-inference-v2-cspvv   0/2       Init:0/1      0          3s
-po/pipeline-inference-v2-ks539   0/2       Pending       0          3s
-po/pipeline-inference-v2-t8lgz   0/2       Init:0/1      0          3s
-po/pipeline-inference-v2-x7xdv   0/2       Init:0/1      0          3s
-po/pipeline-inference-v2-z3grg   0/2       Init:0/1      0          3s
-po/pipeline-model-v1-ps9sl       2/2       Running       0          2h
-
-NAME                       DESIRED   CURRENT   READY     AGE
-rc/pipeline-inference-v2   10        10        0         3s
-rc/pipeline-model-v1       1         1         1         2h
-
-NAME                        CLUSTER-IP      EXTERNAL-IP   PORT(S)                       AGE
-svc/etcd                    10.96.190.86    <nodes>       2379:32379/TCP                2h
-svc/kubernetes              10.96.0.1       <none>        443/TCP                       2h
-svc/pachd                   10.103.153.25   <nodes>       650:30650/TCP,651:30651/TCP   2h
-svc/pipeline-inference-v2   10.101.50.128   <none>        80/TCP                        3s
-svc/pipeline-model-v1       10.96.86.16     <none>        80/TCP                        2h
-
-NAME           DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-deploy/etcd    1         1         1            1           2h
-deploy/pachd   1         1         1            1           2h
-
-NAME                  DESIRED   CURRENT   READY     AGE
-rs/etcd-4197107720    1         1         1         2h
-rs/pachd-3548222380   1         1         1         2h
-$ kubectl get all
-NAME                             READY     STATUS        RESTARTS   AGE
-po/etcd-4197107720-xl44v         1/1       Running       0          2h
-po/pachd-3548222380-6nx8j        1/1       Running       0          2h
-po/pipeline-inference-v2-0c8g3   2/2       Running       0          31s
-po/pipeline-inference-v2-1bstd   2/2       Running       0          31s
-po/pipeline-inference-v2-2jm3f   2/2       Running       0          31s
-po/pipeline-inference-v2-30mc3   2/2       Running       0          31s
-po/pipeline-inference-v2-8sxnr   2/2       Running       0          31s
-po/pipeline-inference-v2-cspvv   2/2       Running       0          31s
-po/pipeline-inference-v2-ks539   2/2       Running       0          31s
-po/pipeline-inference-v2-t8lgz   2/2       Running       0          31s
-po/pipeline-inference-v2-x7xdv   2/2       Running       0          31s
-po/pipeline-inference-v2-z3grg   2/2       Running       0          31s
-po/pipeline-model-v1-ps9sl       2/2       Running       0          2h
-
-NAME                       DESIRED   CURRENT   READY     AGE
-rc/pipeline-inference-v2   10        10        10        31s
-rc/pipeline-model-v1       1         1         1         2h
-
-NAME                        CLUSTER-IP      EXTERNAL-IP   PORT(S)                       AGE
-svc/etcd                    10.96.190.86    <nodes>       2379:32379/TCP                2h
-svc/kubernetes              10.96.0.1       <none>        443/TCP                       2h
-svc/pachd                   10.103.153.25   <nodes>       650:30650/TCP,651:30651/TCP   2h
-svc/pipeline-inference-v2   10.101.50.128   <none>        80/TCP                        31s
-svc/pipeline-model-v1       10.96.86.16     <none>        80/TCP                        2h
-
-NAME           DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-deploy/etcd    1         1         1            1           2h
-deploy/pachd   1         1         1            1           2h
-
-NAME                  DESIRED   CURRENT   READY     AGE
-rs/etcd-4197107720    1         1         1         2h
-rs/pachd-3548222380   1         1         1         2h
+  AGE
+dash-64bf867d6b-tmql2         2/2       Running           0          35m
+etcd-7dbb489f44-dhjrf         1/1       Running           0          35m
+pachd-9f4654f69-7fqzz         1/1       Running           0          35m
+pipeline-inference-v2-289h8   2/2       Running           0          16s
+pipeline-inference-v2-8t6dt   0/2       PodInitializing   0          16s
+pipeline-inference-v2-d9f7p   0/2       Init:0/1          0          16s
+pipeline-inference-v2-dsw4h   0/2       Init:0/1          0          16s
+pipeline-inference-v2-gpbt8   0/2       Init:0/1          0          16s
+pipeline-inference-v2-gwbq2   2/2       Running           0          16s
+pipeline-inference-v2-htd44   0/2       Init:0/1          0          16s
+pipeline-inference-v2-jg42j   0/2       PodInitializing   0          16s
+pipeline-inference-v2-pshs9   0/2       PodInitializing   0          16s
+pipeline-inference-v2-xntsr   0/2       Init:0/1          0          16s
+pipeline-model-v1-src4q       2/2       Running           0          8m
+$ kubectl get pods
+NAME                          READY     STATUS    RESTARTS   AGE
+dash-64bf867d6b-tmql2         2/2       Running   0          36m
+etcd-7dbb489f44-dhjrf         1/1       Running   0          36m
+pachd-9f4654f69-7fqzz         1/1       Running   0          36m
+pipeline-inference-v2-289h8   2/2       Running   0          30s
+pipeline-inference-v2-8t6dt   2/2       Running   0          30s
+pipeline-inference-v2-d9f7p   2/2       Running   0          30s
+pipeline-inference-v2-dsw4h   2/2       Running   0          30s
+pipeline-inference-v2-gpbt8   2/2       Running   0          30s
+pipeline-inference-v2-gwbq2   2/2       Running   0          30s
+pipeline-inference-v2-htd44   2/2       Running   0          30s
+pipeline-inference-v2-jg42j   2/2       Running   0          30s
+pipeline-inference-v2-pshs9   2/2       Running   0          30s
+pipeline-inference-v2-xntsr   2/2       Running   0          30s
+pipeline-model-v1-src4q       2/2       Running   0          8m
 ```
 
 ### 11. Update the model training
@@ -335,61 +303,62 @@ You might have noticed that we only used one "epoch" in our model training the f
 Once you modify the spec, you can update the pipeline by running:
 
 ```
-$ pachctl update-pipeline -f train.json
+$ pachctl update-pipeline -f train.json --reprocess
 ```
 
 Pachyderm will then automatically kick off a new job to retrain our model with the updated parameters:
 
 ```
 $ pachctl list-job
-ID                                   OUTPUT COMMIT                              STARTED        DURATION           RESTART PROGRESS STATE             
-31095b41-d32e-4f96-b057-5a47df695e04 model/-                                    2 minutes ago  -                  1       0 / 1    running  
-40440de9-542f-4f32-80ce-bc52b5222424 inference/cd548a0b651b4c188b5c66ab0f12ae96 47 minutes ago 12 seconds         0       2 / 2    success  
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1     2 hours ago    3 minutes          0       1 / 1    success 
+ID                                   OUTPUT COMMIT                              STARTED       DURATION   RESTART PROGRESS  DL       UL       STATE
+1f62533a-6fe3-4a99-8ec7-e71bebaf0563 model/-                                    2 seconds ago -          0       0 + 0 / 1 0B       0B       running
+b5e9e4ba-93ef-4cfa-841b-cff3cbf21529 inference/fe985f6564da4edb9dd04892a911e7af 4 minutes ago 2 seconds  0       2 + 0 / 2 41.85MiB 70B      success
+df48056d-bbc2-4fc4-995e-3fae9dc1a659 model/7d5eae8ba55c4f04b5a97e117eb93310     9 minutes ago 14 seconds 0       1 + 0 / 1 977.6KiB 20.93MiB success
 ```
 
-Not only that, once the model is retrained, Pachyderm see the new model and updates our inferences with the latest version of the model:
+Not only that, once the model is retrained, Pachyderm see the new model and automatically update our inferences with the latest version of the model.
 
 ```
 $ pachctl list-job
-ID                                   OUTPUT COMMIT                              STARTED        DURATION           RESTART PROGRESS STATE            
-681ccee7-24d8-4d78-8ca7-81c539fe973a inference/ce133b12400a46248a2b46917a6ce9f2 3 minutes ago  1 seconds          0       2 / 2    success 
-31095b41-d32e-4f96-b057-5a47df695e04 model/da368d8220d64db2924e73c9d8e428c7     8 minutes ago  4 minutes          1       1 / 1    success 
-40440de9-542f-4f32-80ce-bc52b5222424 inference/cd548a0b651b4c188b5c66ab0f12ae96 53 minutes ago 12 seconds         0       2 / 2    success 
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1     2 hours ago    3 minutes          0       1 / 1    success
+ID                                   OUTPUT COMMIT                              STARTED        DURATION   RESTART PROGRESS  DL       UL       STATE
+5b227d47-c801-4fec-a0c5-8f06732ff4a9 inference/f828b13e7fd54e149101fed150e58d1e 43 seconds ago 1 second   0       2 + 0 / 2 41.85MiB 68B      success
+1f62533a-6fe3-4a99-8ec7-e71bebaf0563 model/92c33d731e2b4fc5ab0c6f91e13cce4a     56 seconds ago 3 minutes  0       1 + 0 / 1 977.6KiB 20.93MiB success
+b5e9e4ba-93ef-4cfa-841b-cff3cbf21529 inference/fe985f6564da4edb9dd04892a911e7af 5 minutes ago  2 seconds  0       2 + 0 / 2 41.85MiB 70B      success
+df48056d-bbc2-4fc4-995e-3fae9dc1a659 model/7d5eae8ba55c4f04b5a97e117eb93310     10 minutes ago 14 seconds 0       1 + 0 / 1 977.6KiB 20.93MiB success
 ```
 
 ### 12. Update the training data set
 
-Let's say that one or more observations in our training data set were corrupt or unwanted.  Thus, we want to update our training data set.  To simulate this, go ahead and open up `labeledTrainData.tsv` and remove a couple of the reviews (i.e., the non-header rows).  Then, let's replace our training set:
+Let's say that one or more observations in our training data set were corrupt or unwanted.  Thus, we want to update our training data set.  To simulate this, go ahead and open up `labeledTrainData.tsv` (e.g., with `vim`) and remove a couple of the reviews (i.e., the non-header rows).  Then, let's replace our training set:
 
 ```
-$ pachctl start-commit training master
-9cc070dadc344150ac4ceef2f0758509
-$ pachctl delete-file training 9cc070dadc344150ac4ceef2f0758509 labeledTrainData.tsv 
-$ pachctl put-file training 9cc070dadc344150ac4ceef2f0758509 -f labeledTrainData.tsv 
-$ pachctl finish-commit training 9cc070dadc344150ac4ceef2f0758509
+$ vim labeledTrainData.tsv
+$ pachctl put-file training master -c -o -f labeledTrainData.tsv
 ```
 
 Immediately, Pachyderm "knows" that the data has been updated, and it starts a new job to update the model and inferences:
 
 ```
 $ pachctl list-job
-ID                                   OUTPUT COMMIT                              STARTED        DURATION   RESTART PROGRESS STATE            
-b76f5da2-13ab-4696-9747-6e3555c244bf model/-                                    52 seconds ago -          0       0 / 1    running 
-40440de9-542f-4f32-80ce-bc52b5222424 inference/cd548a0b651b4c188b5c66ab0f12ae96 20 minutes ago 12 seconds 0       2 / 2    success 
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1     2 hours ago    3 minutes  0       1 / 1    success
+ID                                   OUTPUT COMMIT                              STARTED        DURATION   RESTART PROGRESS  DL       UL       STATE
+491fa992-3070-455e-b371-b5ab96065be3 model/-                                    8 seconds ago  -          0       0 + 0 / 1 0B       0B       running
+5b227d47-c801-4fec-a0c5-8f06732ff4a9 inference/f828b13e7fd54e149101fed150e58d1e 3 minutes ago  1 second   0       2 + 0 / 2 41.85MiB 68B      success
+1f62533a-6fe3-4a99-8ec7-e71bebaf0563 model/92c33d731e2b4fc5ab0c6f91e13cce4a     3 minutes ago  12 seconds 0       1 + 0 / 1 977.6KiB 20.93MiB success
+b5e9e4ba-93ef-4cfa-841b-cff3cbf21529 inference/fe985f6564da4edb9dd04892a911e7af 8 minutes ago  2 seconds  0       2 + 0 / 2 41.85MiB 70B      success
+df48056d-bbc2-4fc4-995e-3fae9dc1a659 model/7d5eae8ba55c4f04b5a97e117eb93310     12 minutes ago 14 seconds 0       1 + 0 / 1 977.6KiB 20.93MiB success
 ```
 
 Not only that, when the new model has been produced, Pachyderm "knows" that there is a new model and updates the previously inferred sentiments:
 
 ```
 $ pachctl list-job
-ID                                   OUTPUT COMMIT                              STARTED        DURATION           RESTART PROGRESS STATE            
-22309e93-098b-4721-ae6e-d69de6c59dac inference/18d5502ec45f489cb90eaea133a057f2 18 seconds ago Less than a second 0       2 / 2    success 
-b76f5da2-13ab-4696-9747-6e3555c244bf model/14fa56e673404b3eb9e12157cee77a9c     2 minutes ago  2 minutes          0       1 / 1    success 
-40440de9-542f-4f32-80ce-bc52b5222424 inference/cd548a0b651b4c188b5c66ab0f12ae96 21 minutes ago 12 seconds         0       2 / 2    success 
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1     2 hours ago    3 minutes          0       1 / 1    success
+ID                                   OUTPUT COMMIT                              STARTED            DURATION   RESTART PROGRESS  DL       UL       STATE
+8b8fa33d-cbb3-40a6-93b5-6f59407714fb inference/39b2a5d9fe874c0f95b5473af14485a5 About a minute ago 1 second   0       2 + 0 / 2 41.85MiB 70B      success
+491fa992-3070-455e-b371-b5ab96065be3 model/960d0e24a836448fae076cf6f2c98e40     About a minute ago 12 seconds 0       1 + 0 / 1 974.3KiB 20.92MiB success
+5b227d47-c801-4fec-a0c5-8f06732ff4a9 inference/f828b13e7fd54e149101fed150e58d1e 4 minutes ago      1 second   0       2 + 0 / 2 41.85MiB 68B      success
+1f62533a-6fe3-4a99-8ec7-e71bebaf0563 model/92c33d731e2b4fc5ab0c6f91e13cce4a     4 minutes ago      12 seconds 0       1 + 0 / 1 977.6KiB 20.93MiB success
+b5e9e4ba-93ef-4cfa-841b-cff3cbf21529 inference/fe985f6564da4edb9dd04892a911e7af 9 minutes ago      2 seconds  0       2 + 0 / 2 41.85MiB 70B      success
+df48056d-bbc2-4fc4-995e-3fae9dc1a659 model/7d5eae8ba55c4f04b5a97e117eb93310     13 minutes ago     14 seconds 0       1 + 0 / 1 977.6KiB 20.93MiB success
 ```
 
 ### 13. Examine pipeline provenance
@@ -400,30 +369,31 @@ Suppose we have run the following jobs:
 
 ```
 $ pachctl list-job
-ID                                   OUTPUT COMMIT                              STARTED        DURATION           RESTART PROGRESS STATE            
-22309e93-098b-4721-ae6e-d69de6c59dac inference/18d5502ec45f489cb90eaea133a057f2 18 seconds ago Less than a second 0       2 / 2    success 
-b76f5da2-13ab-4696-9747-6e3555c244bf model/14fa56e673404b3eb9e12157cee77a9c     2 minutes ago  2 minutes          0       1 / 1    success 
-2e2ba0ec-1a99-4b15-97c0-32a38aa910fb inference/37c1247e40bc44de871b63d20472de4d 7 minutes ago  21 seconds         0       2 / 2    success 
-40440de9-542f-4f32-80ce-bc52b5222424 inference/cd548a0b651b4c188b5c66ab0f12ae96 21 minutes ago 12 seconds         0       2 / 2    success 
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1     2 hours ago    3 minutes          0       1 / 1    success
+ID                                   OUTPUT COMMIT                              STARTED            DURATION   RESTART PROGRESS  DL       UL       STATE
+8b8fa33d-cbb3-40a6-93b5-6f59407714fb inference/39b2a5d9fe874c0f95b5473af14485a5 About a minute ago 1 second   0       2 + 0 / 2 41.85MiB 70B      success
+491fa992-3070-455e-b371-b5ab96065be3 model/960d0e24a836448fae076cf6f2c98e40     About a minute ago 12 seconds 0       1 + 0 / 1 974.3KiB 20.92MiB success
+5b227d47-c801-4fec-a0c5-8f06732ff4a9 inference/f828b13e7fd54e149101fed150e58d1e 4 minutes ago      1 second   0       2 + 0 / 2 41.85MiB 68B      success
+1f62533a-6fe3-4a99-8ec7-e71bebaf0563 model/92c33d731e2b4fc5ab0c6f91e13cce4a     4 minutes ago      12 seconds 0       1 + 0 / 1 977.6KiB 20.93MiB success
+b5e9e4ba-93ef-4cfa-841b-cff3cbf21529 inference/fe985f6564da4edb9dd04892a911e7af 9 minutes ago      2 seconds  0       2 + 0 / 2 41.85MiB 70B      success
+df48056d-bbc2-4fc4-995e-3fae9dc1a659 model/7d5eae8ba55c4f04b5a97e117eb93310     13 minutes ago     14 seconds 0       1 + 0 / 1 977.6KiB 20.93MiB success
 ```
 
-If we want to know which model and training data set was used for the latest inference, commit id `18d5502ec45f489cb90eaea133a057f2`, we just need to inspect the particular commit:
+If we want to know which model and training data set was used for the latest inference, commit id `39b2a5d9fe874c0f95b5473af14485a5`, we just need to inspect the particular commit:
 
 ```
-$ pachctl inspect-commit inference 18d5502ec45f489cb90eaea133a057f2
-Commit: inference/18d5502ec45f489cb90eaea133a057f2
-Parent: 37c1247e40bc44de871b63d20472de4d 
-Started: 13 minutes ago
-Finished: 13 minutes ago 
-Size: 70 B
-Provenance:  training/9cc070dadc344150ac4ceef2f0758509  model/14fa56e673404b3eb9e12157cee77a9c  reviews/ee3c342ab66e4ea887e5a3b994ac2f7d
+$ pachctl inspect-commit inference 39b2a5d9fe874c0f95b5473af14485a5
+Commit: inference/39b2a5d9fe874c0f95b5473af14485a5
+Parent: f828b13e7fd54e149101fed150e58d1e
+Started: 2 minutes ago
+Finished: 2 minutes ago
+Size: 70B
+Provenance:  training/081d10dc1d9346b5872361e0f8d5ecb9  model/960d0e24a836448fae076cf6f2c98e40  reviews/8847b746d8ee441aa69a20fcfae6db2b
 ```
 
-The `Provenance` tells us exactly which model and training set was used (along with which commit to reviews triggered the sentiment analysis).  For example, if we wanted to see the exact model used, we would just need to reference commit `14fa56e673404b3eb9e12157cee77a9c` to the `model` repo:
+The `Provenance` tells us exactly which model and training set was used (along with which commit to reviews triggered the sentiment analysis).  For example, if we wanted to see the exact model used, we would just need to reference commit `960d0e24a836448fae076cf6f2c98e40` to the `model` repo:
 
 ```
-$ pachctl list-file model 14fa56e673404b3eb9e12157cee77a9c
+$ pachctl list-file model 960d0e24a836448fae076cf6f2c98e40
 NAME                TYPE                SIZE                
 imdb.p              file                20.54 MiB           
 imdb.vocab          file                392.6 KiB
