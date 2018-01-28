@@ -122,7 +122,7 @@ latest: digest: sha256:37769825d1408cbb0a880bd574d025beb5d0e16ae37f4bbe2f18c4c58
 
 While the Docker image we built above is fine and is smaller than many Python deployments, we can do better. There are a variety of minimal linux distributions that we can leverage to build "minimal" Docker containers. In addition, by starting from one of these base images we avoid including any unnecessary Python components, which further minimize the size of the image. A smaller image is easier to upload/download and generally helps your applications spin up faster.
 
-You can try using the [bonus/Dockerfile](Dockerfile) to build another Docker image for our application. Once build and/or pushed to the registry you will see that this image is significantly smaller than our original image.
+You can try using the [bonus/Dockerfile](bonus/Dockerfile) to build another Docker image for our application. Once build and/or pushed to the registry you will see that this image is significantly smaller than our original image.
 
 ## Resources
 
