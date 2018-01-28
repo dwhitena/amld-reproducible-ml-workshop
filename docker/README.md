@@ -12,7 +12,7 @@ The below sections walk you through the "Docker-izing" of an example ML applicat
 Bonus:
 
 5. [Push your Docker image to a registry](README.md#5-push-your-docker-image-to-a-registry)
-6. [Build a minimal Docker image](README.md#6-build-a-minimal-docker-image
+6. [Build a minimal Docker image](README.md#6-build-a-minimal-docker-image)
 
 Finally, I provide some [Resources](README.md#resources) for you for further exploration.
 
