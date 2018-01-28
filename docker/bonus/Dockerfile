@@ -19,7 +19,7 @@ RUN set -x \
     && pip3 install numpy \
     ## scipy
     && pip3 install scipy \
-    ## pnadas 
+    ## pandas
     && apk --no-cache add  \
         py3-dateutil \
         py3-tz \
@@ -35,4 +35,4 @@ RUN set -x \
 
 WORKDIR /code
 
-ADD pytrain.py /code/pytrain.py
+ADD train.py /code/train.py
