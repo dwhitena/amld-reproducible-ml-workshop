@@ -5,6 +5,14 @@ This portion of the workshop focuses on creating ML applications that produce pr
 The below sections walk you through the "Docker-izing" of an example ML application:
 
 1. [Connect to your cloud instance](README.md#1-connect-to-your-cloud-instance)
+2. [Clone the workshop materials](README.md#2-clone-the-workshop-materials)
+3. [Docker-ize an example python ML application](README.md#3-docker-ize-an-example-python-application)
+4. [Run a Docker container](README.md#4-run-a-docker-container)
+
+Bonus:
+
+5. [Push your Docker image to a registry](README.md#5-push-your-docker-image-to-a-registry)
+6. [Build a minimal Docker image](README.md#6-build-a-minimal-docker-image
 
 Finally, I provide some [Resources](README.md#resources) for you for further exploration.
 
@@ -23,363 +31,98 @@ $ docker --version
 Docker version 1.11.2, build b9f10c9
 ```
 
-## 4. Create the input data repositories 
+## 2. Clone the workshop materials
 
-On the Pachyderm cluster running in your remote machine, we will need to create the two input data repositories (for our training data and input movie reviews).  To do this run:
-
-```
-$ pachctl create-repo training
-$ pachctl create-repo reviews
-```
-
-As a sanity check, we can list out the current repos, and you should see the two repos you just created:
+You will need the workshop files and data on your machine to be able to go through all the examples. Fetch these files with:
 
 ```
-$ pachctl list-repo
-NAME                CREATED             SIZE                
-reviews             2 seconds ago       0 B                 
-training            8 seconds ago       0 B
+$ git clone https://github.com/dwhitena/amld-reproducible-ml-workshop.git
 ```
 
-## 5. Commit the training data set into pachyderm
+## 3. Docker-ize an example Python application
 
-We have our training data repository, but we haven't put our training data set into this repository yet.  You can get the training data set that we will be using via:
+Let's say that we want to "Docker-ize" [example/train.py](example/train.py). This means that we want to create a *Docker image*. The Docker image will include our application and any library/package dependencies. Once built, we can then run this Docker image as a *Docker container* on any machine that is running the *Docker engine*. Regardless of the host OS or local configuration, this will buy us predictable behavior and portability.
 
-```
-$ wget https://s3.amazonaws.com/neon-workshop-data/labeledTrainData.tsv
-```
-
-This `labeledTrainData.tsv` file include 750 labeled movie reviews sampled from a larger IMDB data set.  Here we are using a sample for illustrative purposes (so our examples run a little faster in the workshop), but the entire data set can be obtained [here](https://www.kaggle.com/c/word2vec-nlp-tutorial/data).
-
-To get this data into Pachyderm, we run:
+To Docker-ize `train.py` we need a *Dockerfile* that will tell Docker how to build the Docker image. Our example Dockerfile is included [here](example/Dockerfile). Once we have that Dockerfile, we can build the docker image using:
 
 ```
-$ pachctl put-file training master -c -f labeledTrainData.tsv
-```
+$ cd amld-reproducible-ml-workshop/docker/example
+$ sudo docker build -t amld-test . 
+``` 
 
-Then, you should be able to see the following:
+This command will likely ask you for a sudo password. This will be the same password given earlier in the workshop to connect to the instance.
 
-```
-$ pachctl list-repo
-NAME                CREATED             SIZE                
-training            6 minutes ago       977 KiB             
-reviews             6 minutes ago       0 B                 
-$ pachctl list-file training master
-NAME                   TYPE                SIZE                
-labeledTrainData.tsv   file                977 KiB
-```
-
-## 6. Create the training pipeline
-
-Next, we can create the `model` pipeline stage to process the data in the training repository. To do this, we just need to provide Pachyderm with [a JSON pipeline specification](train.json) that tells Pachyderm how to process the data.  You can copy `train.json` from this repository or clone the whole repository to your remote machine.  After you have `infer.json`, creating our `model` training pipeline is as easy as:
+Once built, you should be able to see your image in the list of images on the machine:
 
 ```
-$ pachctl create-pipeline -f train.json
+$ sudo docker images
+REPOSITORY                                               TAG                 IMAGE ID            CREATED             SIZE
+amld-test                                                latest              d3be78f3bb51        18 seconds ago      1.236 GB
+gcr.io/google_containers/kube-apiserver-amd64            v1.8.7              271d3dd5ab8e        11 days ago         194.7 MB
+gcr.io/google_containers/kube-proxy-amd64                v1.8.7              125dec6bd8f2        11 days ago         93.37 MB
+gcr.io/google_containers/kube-controller-manager-amd64   v1.8.7              d8df883aabf9        11 days ago         129.6 MB
+gcr.io/google_containers/kube-scheduler-amd64            v1.8.7              f0325af1b839        11 days ago         55.13 MB
+python                                                   latest              c1e459c00dc3        5 weeks ago         691.7 MB
+pachyderm/dash                                           0.5.23              809ceec0c629        5 weeks ago         135.9 MB
+pachyderm/pachd                                          1.6.6               2aeac001c88c        6 weeks ago         68.33 MB
+weaveworks/weave-npc                                     2.1.3               eafec249fefe        7 weeks ago         46.55 MB
+weaveworks/weave-kube                                    2.1.3               e102e3c2cf2e        7 weeks ago         92.59 MB
+gcr.io/google_containers/k8s-dns-sidecar-amd64           1.14.5              fed89e8b4248        4 months ago        41.82 MB
+gcr.io/google_containers/k8s-dns-kube-dns-amd64          1.14.5              512cd7425a73        4 months ago        49.39 MB
+gcr.io/google_containers/k8s-dns-dnsmasq-nanny-amd64     1.14.5              459944ce8cc4        4 months ago        41.42 MB
+pachyderm/grpc-proxy                                     0.4.2               c799876a153f        4 months ago        723.9 MB
+pachyderm/etcd                                           v3.2.7              eb082d6ca0f2        4 months ago        47.08 MB
+gcr.io/google_containers/etcd-amd64                      3.0.17              243830dae7dd        11 months ago       168.9 MB
+gcr.io/google_containers/pause-amd64                     3.0                 99e59f495ffa        21 months ago       746.9 kB
 ```
 
-Immediately you will notice that Pachyderm has kicked off a job to perform the model training:
+## 4. Run a Docker container
+
+After building the Docker image, we can run this Docker image on any machine that has Docker installed. Let's try just running it on this instance with:
 
 ```
-$ pachctl list-job
-ID                                   OUTPUT COMMIT STARTED       DURATION RESTART PROGRESS STATE            
-82682496-5b41-45a0-96f7-175812274dd8 model/-       2 seconds ago -        0       0 / 1    running
+$ sudo docker run -it amld-test /bin/bash
 ```
 
-This job should run for about 3-8 minutes.  In the mean time, we will address any questions that might have come up, help any users with issues they are experiences, and talk a bit more about ML workflows in Pachyderm.
-
-After your model has successfully been trained, you should see:
-
-```
-$ pachctl list-job
-ID                                   OUTPUT COMMIT                          STARTED        DURATION  RESTART PROGRESS STATE            
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1 11 minutes ago 3 minutes 0       1 / 1    success
-$ pachctl list-repo
-NAME                CREATED             SIZE                
-reviews             21 minutes ago      0 B            
-model               10 minutes ago      20.93 MiB           
-training            21 minutes ago      977 KiB             
-$ pachctl list-file model master
-NAME                TYPE                SIZE                
-imdb.p              file                20.54 MiB           
-imdb.vocab          file                393.2 KiB
-```
-
-## 7. Commit input reviews
-
-Great! We now have a trained model that will infer the sentiment of movie reviews.  Let's commit some movie reviews into Pachyderm that we would like to run through the sentiment analysis.  We have a couple examples under [test](test).  Feel free to use these, find your own, or even write your own review.  To commit our samples (assuming you have cloned this repo on the remote machine), you can run:
-
-```
-$ cd test
-$ pachctl put-file reviews master -c -r -f .
-```
-
-You should then see:
-
-```
-$ pachctl list-file reviews master
-NAME                TYPE                SIZE                
-1.txt               file                770 B               
-2.txt               file                897 B
-```
-
-## 8. Create the inference pipeline
-
-We have another JSON blob, [infer.json](infer.json), that will tell Pachyderm how to perform the processing for the inference stage.  This is similar to our last JSON specification except, in this case, we have two input repositories (the `reviews` and the `model`) and we are using a different Docker image that contains `auto_inference.py`.  To create the inference stage, we simply run:
-
-```
-$ pachctl create-pipeline -f infer.json
-```
-
-This will immediately kick off an inference job, because we have committed unprocessed reviews into the `reviews` repo.  The results will then be versioned in a corresponding `inference` data repository:
-
-```
-$ pachctl list-job
-ID                                   OUTPUT COMMIT                          STARTED           DURATION  RESTART PROGRESS STATE            
-40440de9-542f-4f32-80ce-bc52b5222424 inference/-                            3 seconds ago     -         0       0 / 2    running 
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1 About an hour ago 3 minutes 0       1 / 1    success 
-$ pachctl list-job
-ID                                   OUTPUT COMMIT                              STARTED            DURATION   RESTART PROGRESS STATE            
-40440de9-542f-4f32-80ce-bc52b5222424 inference/cd548a0b651b4c188b5c66ab0f12ae96 About a minute ago 12 seconds 0       2 / 2    success 
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1     About an hour ago  3 minutes  0       1 / 1    success 
-$ pachctl list-repo
-NAME                CREATED              SIZE                
-inference           About a minute ago   70 B                
-reviews             2 hours ago          1.628 KiB           
-model               About an hour ago    20.93 MiB           
-training            2 hours ago          977 KiB
-```
-
-## 9. Examine the results
-
-We have created results from the inference, but how do we examine those results?  There are multiple ways, but an easy way is to just "get" the specific files out of Pachyderm's data versioning:
-
-```
-$ pachctl list-file inference master
-NAME                TYPE                SIZE                
-1.txt               file                35 B                
-2.txt               file                35 B                
-$ pachctl get-file inference master 1.txt
-Pred - [[ 0.50981182  0.49018815]]
-$ pachctl get-file inference master 2.txt
-Pred - [[ 0.53010267  0.46989727]]
-```
-
-Here we can see that each result file contains two probabilities corresponding to postive and negative sentiment, respectively.
+This will open up an interactive bash shell in the container. You can explore the container a bit and try running the code (`train.py`) that we added to the image.
 
 ## Bonus exercises
 
-You may not get to all of these bonus exercises during the workshop time, but you can perform these and all of the above steps any time you like with a [simple local Pachyderm install](http://docs.pachyderm.io/en/latest/getting_started/local_installation.html).  You can spin up this local version of Pachyderm is just a few commands and experiment with this, [other Pachyderm examples](http://docs.pachyderm.io/en/latest/examples/readme.html), and/or your own pipelines.
+You may not get to all of these bonus exercises during the workshop time, but you can perform these and all of the above steps any time you like with a [local installation of Docker](https://www.docker.com/community-edition). 
 
-### 10. Parallelize the inference
+### 5. Push your docker image to a registry
 
-You may have noticed that our pipeline specs included a `parallelism_spec` field.  This tells Pachyderm how to parallelize a particular pipeline stage.  Let's say that in production we start receiving a huge number of movie reviews, and we need to keep up with our sentiment analysis.  In particular, let's say we want to spin up 10 inference workers to perform sentiment analysis in parallel.
+Generally, Docker images are stored and versioned in a *Docker registry*. [Docker Hub](https://hub.docker.com/) is an example of such a registry and is pretty convenient for development. If you have a Docker Hub account or if you create one, we can push our previously built image to the registry by (i) tagging the image with our Docker Hub username, and (ii) logging into Docker Hub, and (iii) pushing the image to Docker Hub.
 
-This actually doesn't require any change to our code.  We can simply change our `parallelism_spec` to:
-
-```
-  "parallelism_spec": {
-    "strategy": "CONSTANT",
-    "constant": "10"
-  },
-```
-
-Pachyderm will then spin up 10 inference workers, each running our same `auto_inference.py` script, to perform inference in parallel.  This can be confirmed by updating our pipeline and then examining the cluster:
+You should be able to replace `dwhitena` below with your Docker Hub username:
 
 ```
-$ vim infer.json 
-$ pachctl update-pipeline -f infer.json 
-$ kubectl get all
-NAME                             READY     STATUS        RESTARTS   AGE
-po/etcd-4197107720-xl44v         1/1       Running       0          2h
-po/pachd-3548222380-6nx8j        1/1       Running       0          2h
-po/pipeline-inference-v1-k5vzq   2/2       Terminating   0          14m
-po/pipeline-inference-v2-0c8g3   0/2       Pending       0          3s
-po/pipeline-inference-v2-1bstd   0/2       Init:0/1      0          3s
-po/pipeline-inference-v2-2jm3f   0/2       Init:0/1      0          3s
-po/pipeline-inference-v2-30mc3   0/2       Pending       0          3s
-po/pipeline-inference-v2-8sxnr   0/2       Init:0/1      0          3s
-po/pipeline-inference-v2-cspvv   0/2       Init:0/1      0          3s
-po/pipeline-inference-v2-ks539   0/2       Pending       0          3s
-po/pipeline-inference-v2-t8lgz   0/2       Init:0/1      0          3s
-po/pipeline-inference-v2-x7xdv   0/2       Init:0/1      0          3s
-po/pipeline-inference-v2-z3grg   0/2       Init:0/1      0          3s
-po/pipeline-model-v1-ps9sl       2/2       Running       0          2h
-
-NAME                       DESIRED   CURRENT   READY     AGE
-rc/pipeline-inference-v2   10        10        0         3s
-rc/pipeline-model-v1       1         1         1         2h
-
-NAME                        CLUSTER-IP      EXTERNAL-IP   PORT(S)                       AGE
-svc/etcd                    10.96.190.86    <nodes>       2379:32379/TCP                2h
-svc/kubernetes              10.96.0.1       <none>        443/TCP                       2h
-svc/pachd                   10.103.153.25   <nodes>       650:30650/TCP,651:30651/TCP   2h
-svc/pipeline-inference-v2   10.101.50.128   <none>        80/TCP                        3s
-svc/pipeline-model-v1       10.96.86.16     <none>        80/TCP                        2h
-
-NAME           DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-deploy/etcd    1         1         1            1           2h
-deploy/pachd   1         1         1            1           2h
-
-NAME                  DESIRED   CURRENT   READY     AGE
-rs/etcd-4197107720    1         1         1         2h
-rs/pachd-3548222380   1         1         1         2h
-$ kubectl get all
-NAME                             READY     STATUS        RESTARTS   AGE
-po/etcd-4197107720-xl44v         1/1       Running       0          2h
-po/pachd-3548222380-6nx8j        1/1       Running       0          2h
-po/pipeline-inference-v2-0c8g3   2/2       Running       0          31s
-po/pipeline-inference-v2-1bstd   2/2       Running       0          31s
-po/pipeline-inference-v2-2jm3f   2/2       Running       0          31s
-po/pipeline-inference-v2-30mc3   2/2       Running       0          31s
-po/pipeline-inference-v2-8sxnr   2/2       Running       0          31s
-po/pipeline-inference-v2-cspvv   2/2       Running       0          31s
-po/pipeline-inference-v2-ks539   2/2       Running       0          31s
-po/pipeline-inference-v2-t8lgz   2/2       Running       0          31s
-po/pipeline-inference-v2-x7xdv   2/2       Running       0          31s
-po/pipeline-inference-v2-z3grg   2/2       Running       0          31s
-po/pipeline-model-v1-ps9sl       2/2       Running       0          2h
-
-NAME                       DESIRED   CURRENT   READY     AGE
-rc/pipeline-inference-v2   10        10        10        31s
-rc/pipeline-model-v1       1         1         1         2h
-
-NAME                        CLUSTER-IP      EXTERNAL-IP   PORT(S)                       AGE
-svc/etcd                    10.96.190.86    <nodes>       2379:32379/TCP                2h
-svc/kubernetes              10.96.0.1       <none>        443/TCP                       2h
-svc/pachd                   10.103.153.25   <nodes>       650:30650/TCP,651:30651/TCP   2h
-svc/pipeline-inference-v2   10.101.50.128   <none>        80/TCP                        31s
-svc/pipeline-model-v1       10.96.86.16     <none>        80/TCP                        2h
-
-NAME           DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-deploy/etcd    1         1         1            1           2h
-deploy/pachd   1         1         1            1           2h
-
-NAME                  DESIRED   CURRENT   READY     AGE
-rs/etcd-4197107720    1         1         1         2h
-rs/pachd-3548222380   1         1         1         2h
+$ sudo docker tag amld-test dwhitena/amld-test
+$ sudo docker login
+Login with your Docker ID to push and pull images from Docker Hub. If you don't have a Docker ID, head over to https://hub.docker.com to create one.
+Username: dwhitena
+Password:
+Login Succeeded
+$ sudo docker push dwhitena/amld-test
+The push refers to a repository [docker.io/dwhitena/amld-test]
+ec5f135f5bb2: Pushed
+9ef903179678: Pushed
+6dce5c484bde: Mounted from library/python
+057c34df1f1a: Mounted from library/python
+3d358bf2f209: Mounted from library/python
+0870b36b7599: Mounted from library/python
+8fe6d5dcea45: Mounted from library/python
+06b8d020c11b: Mounted from library/python
+b9914afd042f: Mounted from library/python
+4bcdffd70da2: Mounted from library/python
+latest: digest: sha256:37769825d1408cbb0a880bd574d025beb5d0e16ae37f4bbe2f18c4c58d8ac447 size: 2427
 ```
 
-### 11. Update the model training
+### 6. Build a minimal Docker image 
 
-**Note** - This exercise increases the training time of our model, so you might be waiting for 5+ minutes for the model to re-train (maybe up to 10-15 minutes).  If you don't want to wait for this amount of time during the workshop, you could try step 12, which will take less time.
+While the Docker image we built above is fine and is smaller than many Python deployments, we can do better. There are a variety of minimal linux distributions that we can leverage to build "minimal" Docker containers. In addition, by starting from one of these base images we avoid including any unnecessary Python components, which further minimize the size of the image. A smaller image is easier to upload/download and generally helps your applications spin up faster.
 
-You might have noticed that we only used one "epoch" in our model training the first time around.  This is probably not enough in general.  As such, you can change this to two, for example, by modifying `train.json`:
-
-```
-    "cmd": [ 
-	"python", 
-	"examples/imdb/train.py", 
-	"-f", 
-	"/pfs/training/labeledTrainData.tsv", 
-	"-e", 
-	"2", 
-	"-eval", 
-	"1", 
-	"-s", 
-	"/pfs/out/imdb.p", 
-	"--vocab_file", 
-	"/pfs/out/imdb.vocab" 
-    ]
-```
-
-Once you modify the spec, you can update the pipeline by running:
-
-```
-$ pachctl update-pipeline -f train.json
-```
-
-Pachyderm will then automatically kick off a new job to retrain our model with the updated parameters:
-
-```
-$ pachctl list-job
-ID                                   OUTPUT COMMIT                              STARTED        DURATION           RESTART PROGRESS STATE             
-31095b41-d32e-4f96-b057-5a47df695e04 model/-                                    2 minutes ago  -                  1       0 / 1    running  
-40440de9-542f-4f32-80ce-bc52b5222424 inference/cd548a0b651b4c188b5c66ab0f12ae96 47 minutes ago 12 seconds         0       2 / 2    success  
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1     2 hours ago    3 minutes          0       1 / 1    success 
-```
-
-Not only that, once the model is retrained, Pachyderm see the new model and updates our inferences with the latest version of the model:
-
-```
-$ pachctl list-job
-ID                                   OUTPUT COMMIT                              STARTED        DURATION           RESTART PROGRESS STATE            
-681ccee7-24d8-4d78-8ca7-81c539fe973a inference/ce133b12400a46248a2b46917a6ce9f2 3 minutes ago  1 seconds          0       2 / 2    success 
-31095b41-d32e-4f96-b057-5a47df695e04 model/da368d8220d64db2924e73c9d8e428c7     8 minutes ago  4 minutes          1       1 / 1    success 
-40440de9-542f-4f32-80ce-bc52b5222424 inference/cd548a0b651b4c188b5c66ab0f12ae96 53 minutes ago 12 seconds         0       2 / 2    success 
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1     2 hours ago    3 minutes          0       1 / 1    success
-```
-
-### 12. Update the training data set
-
-Let's say that one or more observations in our training data set were corrupt or unwanted.  Thus, we want to update our training data set.  To simulate this, go ahead and open up `labeledTrainData.tsv` and remove a couple of the reviews (i.e., the non-header rows).  Then, let's replace our training set:
-
-```
-$ pachctl start-commit training master
-9cc070dadc344150ac4ceef2f0758509
-$ pachctl delete-file training 9cc070dadc344150ac4ceef2f0758509 labeledTrainData.tsv 
-$ pachctl put-file training 9cc070dadc344150ac4ceef2f0758509 -f labeledTrainData.tsv 
-$ pachctl finish-commit training 9cc070dadc344150ac4ceef2f0758509
-```
-
-Immediately, Pachyderm "knows" that the data has been updated, and it starts a new job to update the model and inferences:
-
-```
-$ pachctl list-job
-ID                                   OUTPUT COMMIT                              STARTED        DURATION   RESTART PROGRESS STATE            
-b76f5da2-13ab-4696-9747-6e3555c244bf model/-                                    52 seconds ago -          0       0 / 1    running 
-40440de9-542f-4f32-80ce-bc52b5222424 inference/cd548a0b651b4c188b5c66ab0f12ae96 20 minutes ago 12 seconds 0       2 / 2    success 
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1     2 hours ago    3 minutes  0       1 / 1    success
-```
-
-Not only that, when the new model has been produced, Pachyderm "knows" that there is a new model and updates the previously inferred sentiments:
-
-```
-$ pachctl list-job
-ID                                   OUTPUT COMMIT                              STARTED        DURATION           RESTART PROGRESS STATE            
-22309e93-098b-4721-ae6e-d69de6c59dac inference/18d5502ec45f489cb90eaea133a057f2 18 seconds ago Less than a second 0       2 / 2    success 
-b76f5da2-13ab-4696-9747-6e3555c244bf model/14fa56e673404b3eb9e12157cee77a9c     2 minutes ago  2 minutes          0       1 / 1    success 
-40440de9-542f-4f32-80ce-bc52b5222424 inference/cd548a0b651b4c188b5c66ab0f12ae96 21 minutes ago 12 seconds         0       2 / 2    success 
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1     2 hours ago    3 minutes          0       1 / 1    success
-```
-
-### 13. Examine pipeline provenance
-
-Let's say that we have updated our model or training set in one of the above scenarios (step 11 or 12).  Now we have multiple inferences that were made with different models and/or training data sets.  How can we know which results came from which specific models and/or training data sets?  This is called "provenance," and Pachyderm gives it to you out of the box.  
-
-Suppose we have run the following jobs:
-
-```
-$ pachctl list-job
-ID                                   OUTPUT COMMIT                              STARTED        DURATION           RESTART PROGRESS STATE            
-22309e93-098b-4721-ae6e-d69de6c59dac inference/18d5502ec45f489cb90eaea133a057f2 18 seconds ago Less than a second 0       2 / 2    success 
-b76f5da2-13ab-4696-9747-6e3555c244bf model/14fa56e673404b3eb9e12157cee77a9c     2 minutes ago  2 minutes          0       1 / 1    success 
-2e2ba0ec-1a99-4b15-97c0-32a38aa910fb inference/37c1247e40bc44de871b63d20472de4d 7 minutes ago  21 seconds         0       2 / 2    success 
-40440de9-542f-4f32-80ce-bc52b5222424 inference/cd548a0b651b4c188b5c66ab0f12ae96 21 minutes ago 12 seconds         0       2 / 2    success 
-82682496-5b41-45a0-96f7-175812274dd8 model/5559fce59d9748b883ff8af6bc60eeb1     2 hours ago    3 minutes          0       1 / 1    success
-```
-
-If we want to know which model and training data set was used for the latest inference, commit id `18d5502ec45f489cb90eaea133a057f2`, we just need to inspect the particular commit:
-
-```
-$ pachctl inspect-commit inference 18d5502ec45f489cb90eaea133a057f2
-Commit: inference/18d5502ec45f489cb90eaea133a057f2
-Parent: 37c1247e40bc44de871b63d20472de4d 
-Started: 13 minutes ago
-Finished: 13 minutes ago 
-Size: 70 B
-Provenance:  training/9cc070dadc344150ac4ceef2f0758509  model/14fa56e673404b3eb9e12157cee77a9c  reviews/ee3c342ab66e4ea887e5a3b994ac2f7d
-```
-
-The `Provenance` tells us exactly which model and training set was used (along with which commit to reviews triggered the sentiment analysis).  For example, if we wanted to see the exact model used, we would just need to reference commit `14fa56e673404b3eb9e12157cee77a9c` to the `model` repo:
-
-```
-$ pachctl list-file model 14fa56e673404b3eb9e12157cee77a9c
-NAME                TYPE                SIZE                
-imdb.p              file                20.54 MiB           
-imdb.vocab          file                392.6 KiB
-```
-
-We could get this model to examine it, rerun it, revert to a different model, etc.
+You can try using the [bonus/Dockerfile](Dockerfile) to build another Docker image for our application. Once build and/or pushed to the registry you will see that this image is significantly smaller than our original image.
 
 ## Resources
 
